@@ -6,9 +6,11 @@ A locally hosted Vietnamese flashcard application for practicing reading and wri
 
 - **Bidirectional Practice** - Quiz in both directions: English → Vietnamese and Vietnamese → English
 - **Strict Diacritic Validation** - Enforces correct tone marks (e.g., "ma" ≠ "má")
+- **Unlimited Tries** - Keep trying until you get it right or give up
 - **3-Level Hint System** - Progressive hints from syllable count to first letters to full answer
 - **Progress Tracking** - Tracks success/fail counts and overall accuracy
 - **Topic-Based Learning** - Load vocabulary from CSV files and filter by topic/category
+- **Password Protection** - Optional authentication for hosted deployments
 - **Add Cards via UI** - Easily expand your vocabulary through the web interface
 
 ## Requirements
@@ -91,6 +93,48 @@ With Telex input, type `ngayf` to produce `ngày`.
 ```bash
 poetry run pytest tests/ -v
 ```
+
+## Configuration
+
+Copy `.env.example` to `.env` and customize:
+
+```bash
+# Enable password protection
+APP_PASSWORD=your-secret-password
+
+# For production with PostgreSQL
+DATABASE_URL=postgresql://user:pass@host/dbname
+
+# Debug mode (enables /docs endpoint)
+DEBUG=false
+```
+
+## Deployment
+
+### Railway (Recommended)
+
+1. Push to GitHub
+2. Connect repo at [railway.app](https://railway.app)
+3. Add environment variables:
+   - `APP_PASSWORD` - your login password
+4. Deploy
+
+### Render
+
+1. Push to GitHub
+2. Create Web Service at [render.com](https://render.com)
+3. Set build command: `pip install poetry && poetry install`
+4. Set start command: `poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+5. Add `APP_PASSWORD` environment variable
+
+### Local Network
+
+```bash
+# Run accessible from other devices on your network
+poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+Access from phone/tablet at `http://YOUR_PC_IP:8000`
 
 ## License
 
