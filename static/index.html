@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyCon Learn - Vietnamese Practice</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        [v-cloak] { display: none; }
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div id="app" v-cloak class="container mx-auto px-4 py-8 max-w-2xl">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">MyCon Learn</h1>
+            <p class="text-gray-600">Vietnamese Practice App</p>
+        </header>
+
+        <!-- Stats Bar -->
+        <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+            <div class="flex justify-between items-center mb-3">
+                <div class="flex gap-4">
+                    <span class="text-green-600 font-medium">{{ stats.total_success }} correct</span>
+                    <span class="text-red-600 font-medium">{{ stats.total_fail }} incorrect</span>
+                </div>
+                <div class="flex gap-2">
+                    <button
+                        @click="setMode('eng_to_viet')"
+                        :class="mode === 'eng_to_viet' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'"
+                        class="px-3 py-1 rounded text-sm font-medium transition"
+                    >
+                        Eng → Viet
+                    </button>
+                    <button
+                        @click="setMode('viet_to_eng')"
+                        :class="mode === 'viet_to_eng' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'"
+                        class="px-3 py-1 rounded text-sm font-medium transition"
+                    >
+                        Viet → Eng
+                    </button>
+                </div>
+            </div>
+
+            <!-- Topic/Category Selector -->
+            <div class="flex items-center gap-3 pt-3 border-t border-gray-200">
+                <label class="text-sm text-gray-600 font-medium">Topic:</label>
+                <select
+                    v-model="selectedCategory"
+                    @change="onCategoryChange"
+                    class="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm focus:border-blue-500 focus:outline-none"
+                >
+                    <option value="">All Topics</option>
+                    <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+                </select>
+                <button
+                    @click="showTopicManager = !showTopicManager"
+                    class="text-gray-500 hover:text-blue-600 p-1"
+                    title="Manage Topics"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Topic Manager Panel -->
+        <div v-if="showTopicManager" class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold">Manage Topics</h3>
+                <button @click="showTopicManager = false" class="text-gray-400 hover:text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Available CSV Files -->
+            <div class="mb-4">
+                <h4 class="text-sm font-medium text-gray-700 mb-2">Available CSV Files (vocab/ folder)</h4>
+                <div v-if="availableTopics.length === 0" class="text-sm text-gray-500 italic">
+                    No CSV files found. Add .csv files to the vocab/ folder.
+                </div>
+                <div v-else class="space-y-2">
+                    <div
+                        v-for="topic in availableTopics"
+                        :key="topic.filename"
+                        class="flex items-center justify-between p-2 bg-gray-50 rounded"
+                    >
+                        <span class="text-sm">{{ topic.name }}</span>
+                        <button
+                            @click="loadTopic(topic.filename, false)"
+                            :disabled="loadingTopic === topic.filename"
+                            class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 disabled:opacity-50"
+                        >
+                            {{ loadingTopic === topic.filename ? 'Loading...' : 'Load' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sync All Button -->
+            <div class="flex gap-2">
+                <button
+                    @click="syncAllTopics"
+                    :disabled="syncing"
+                    class="flex-1 bg-green-600 text-white py-2 rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                >
+                    {{ syncing ? 'Syncing...' : 'Sync All CSV Files' }}
+                </button>
+                <button
+                    @click="refreshCategories"
+                    class="bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm font-medium hover:bg-gray-300"
+                >
+                    Refresh
+                </button>
+            </div>
+
+            <!-- Status Message -->
+            <div v-if="topicMessage" class="mt-3 text-sm p-2 rounded" :class="topicMessageType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+                {{ topicMessage }}
+            </div>
+
+            <!-- CSV Format Help -->
+            <div class="mt-4 p-3 bg-gray-50 rounded text-xs text-gray-600">
+                <p class="font-medium mb-1">CSV Format:</p>
+                <code class="block bg-gray-200 p-2 rounded">vietnamese,english<br>xin chào,hello<br>tạm biệt,goodbye</code>
+            </div>
+        </div>
+
+        <!-- No Cards Message -->
+        <div v-if="noCards" class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+            <p class="text-yellow-800 mb-4">
+                {{ selectedCategory ? `No cards in "${selectedCategory}" topic.` : 'No flashcards available.' }}
+            </p>
+            <div class="flex gap-2 justify-center">
+                <button v-if="selectedCategory" @click="selectedCategory = ''; fetchCard()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
+                    Show All Topics
+                </button>
+                <button @click="showTopicManager = true" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    Load from CSV
+                </button>
+                <button @click="showAddCard = true" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                    Add Card Manually
+                </button>
+            </div>
+        </div>
+
+        <!-- Quiz Card -->
+        <div v-else class="bg-white rounded-xl shadow-lg p-8 mb-6">
+            <!-- Category Badge -->
+            <div v-if="currentCard?.category" class="text-center mb-2">
+                <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">{{ currentCard.category }}</span>
+            </div>
+
+            <!-- Result Banner -->
+            <div
+                v-if="feedbackMessage"
+                :class="feedbackType === 'success' ? 'bg-green-100 border-green-500 text-green-800' :
+                        feedbackType === 'error' ? 'bg-red-100 border-red-500 text-red-800' :
+                        'bg-yellow-100 border-yellow-500 text-yellow-800'"
+                class="border-l-4 p-4 mb-6 rounded"
+            >
+                <p class="font-bold">{{ feedbackMessage }}</p>
+                <p v-if="expectedAnswer" class="mt-1">
+                    Answer: <span class="font-mono font-bold">{{ expectedAnswer }}</span>
+                </p>
+                <p v-if="attempts > 0 && !cardCompleted" class="text-sm mt-1">
+                    Attempts: {{ attempts }}
+                </p>
+            </div>
+
+            <!-- Prompt Display -->
+            <div class="text-center mb-8">
+                <p class="text-gray-500 text-sm mb-2">
+                    {{ mode === 'eng_to_viet' ? 'Translate to Vietnamese:' : 'Translate to English:' }}
+                </p>
+                <h2 class="text-4xl font-bold text-gray-800">{{ currentCard?.prompt || '...' }}</h2>
+            </div>
+
+            <!-- Hint Display -->
+            <div v-if="currentHint" class="text-center mb-4 text-gray-600 font-mono text-xl">
+                Hint: {{ currentHint }}
+            </div>
+
+            <!-- Input Form -->
+            <form @submit.prevent="submitAnswer" class="space-y-4">
+                <input
+                    ref="answerInput"
+                    v-model="userAnswer"
+                    type="text"
+                    :placeholder="mode === 'eng_to_viet' ? 'Type in Vietnamese...' : 'Type in English...'"
+                    class="w-full px-4 py-3 text-xl border-2 rounded-lg focus:outline-none text-center transition-colors"
+                    :class="inputClass"
+                    :disabled="cardCompleted"
+                    autocomplete="off"
+                    spellcheck="false"
+                >
+
+                <div class="flex gap-3 justify-center flex-wrap">
+                    <!-- Check Answer Button (when card not completed) -->
+                    <button
+                        v-if="!cardCompleted"
+                        type="submit"
+                        class="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 transition"
+                    >
+                        Check Answer
+                    </button>
+
+                    <!-- Hint Button (when card not completed) -->
+                    <button
+                        v-if="!cardCompleted"
+                        type="button"
+                        @click="getHint"
+                        class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-300 transition"
+                    >
+                        Hint ({{ hintLevel }}/3)
+                    </button>
+
+                    <!-- Give Up Button (when card not completed and has attempts) -->
+                    <button
+                        v-if="!cardCompleted && attempts > 0"
+                        type="button"
+                        @click="giveUp"
+                        class="bg-red-100 text-red-700 px-6 py-3 rounded-lg font-medium hover:bg-red-200 transition"
+                    >
+                        Give Up
+                    </button>
+
+                    <!-- Next Card Button (when card completed) -->
+                    <button
+                        v-if="cardCompleted"
+                        type="button"
+                        @click="nextCard"
+                        class="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 transition"
+                    >
+                        Next Card
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Add Card Button -->
+        <div class="text-center">
+            <button
+                @click="showAddCard = !showAddCard"
+                class="text-blue-600 hover:text-blue-800 font-medium"
+            >
+                {{ showAddCard ? 'Cancel' : '+ Add New Card' }}
+            </button>
+        </div>
+
+        <!-- Add Card Form -->
+        <div v-if="showAddCard" class="bg-white rounded-xl shadow-lg p-6 mt-4">
+            <h3 class="text-lg font-bold mb-4">Add New Card</h3>
+            <form @submit.prevent="addCard" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Vietnamese</label>
+                    <input
+                        v-model="newCard.vietnamese"
+                        type="text"
+                        class="w-full px-3 py-2 border border-gray-300 rounded focus:border-blue-500 focus:outline-none"
+                        required
+                    >
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">English</label>
+                    <input
+                        v-model="newCard.english"
+                        type="text"
+                        class="w-full px-3 py-2 border border-gray-300 rounded focus:border-blue-500 focus:outline-none"
+                        required
+                    >
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <input
+                        v-model="newCard.category"
+                        type="text"
+                        list="category-list"
+                        class="w-full px-3 py-2 border border-gray-300 rounded focus:border-blue-500 focus:outline-none"
+                        placeholder="e.g., greetings, food, verbs"
+                    >
+                    <datalist id="category-list">
+                        <option v-for="cat in categories" :key="cat" :value="cat"></option>
+                    </datalist>
+                </div>
+                <button
+                    type="submit"
+                    class="w-full bg-green-600 text-white py-2 rounded font-medium hover:bg-green-700 transition"
+                >
+                    Add Card
+                </button>
+            </form>
+        </div>
+
+        <!-- Keyboard Tips -->
+        <div class="mt-8 text-center text-sm text-gray-500">
+            <p>Tip: Use Vietnamese Telex keyboard for diacritics (e.g., type "ngayf" for "ngay")</p>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, computed, onMounted, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                const mode = ref('eng_to_viet');
+                const currentCard = ref(null);
+                const userAnswer = ref('');
+                const expectedAnswer = ref('');
+                const currentHint = ref('');
+                const hintLevel = ref(0);
+                const showAddCard = ref(false);
+                const noCards = ref(false);
+                const answerInput = ref(null);
+
+                // Feedback state
+                const feedbackMessage = ref('');
+                const feedbackType = ref(''); // 'success', 'error', 'warning'
+                const attempts = ref(0);
+                const cardCompleted = ref(false);
+                const lastWasWrong = ref(false);
+
+                // Topic management
+                const selectedCategory = ref('');
+                const categories = ref([]);
+                const availableTopics = ref([]);
+                const showTopicManager = ref(false);
+                const loadingTopic = ref(null);
+                const syncing = ref(false);
+                const topicMessage = ref('');
+                const topicMessageType = ref('success');
+
+                const stats = reactive({
+                    total_success: 0,
+                    total_fail: 0,
+                });
+
+                const newCard = reactive({
+                    vietnamese: '',
+                    english: '',
+                    category: '',
+                });
+
+                // Computed input class based on state
+                const inputClass = computed(() => {
+                    if (cardCompleted) {
+                        return 'border-gray-300 bg-gray-100';
+                    }
+                    if (lastWasWrong.value) {
+                        return 'border-red-400 focus:border-red-500';
+                    }
+                    return 'border-gray-300 focus:border-blue-500';
+                });
+
+                async function fetchStats() {
+                    try {
+                        const res = await fetch('/api/stats');
+                        const data = await res.json();
+                        stats.total_success = data.total_success;
+                        stats.total_fail = data.total_fail;
+                    } catch (err) {
+                        console.error('Failed to fetch stats:', err);
+                    }
+                }
+
+                async function fetchCategories() {
+                    try {
+                        const res = await fetch('/api/categories');
+                        categories.value = await res.json();
+                    } catch (err) {
+                        console.error('Failed to fetch categories:', err);
+                    }
+                }
+
+                async function fetchTopics() {
+                    try {
+                        const res = await fetch('/api/topics');
+                        availableTopics.value = await res.json();
+                    } catch (err) {
+                        console.error('Failed to fetch topics:', err);
+                    }
+                }
+
+                async function fetchCard() {
+                    try {
+                        let url = `/api/card/random?mode=${mode.value}`;
+                        if (selectedCategory.value) {
+                            url += `&category=${encodeURIComponent(selectedCategory.value)}`;
+                        }
+                        const res = await fetch(url);
+                        if (res.status === 404) {
+                            noCards.value = true;
+                            currentCard.value = null;
+                            return;
+                        }
+                        noCards.value = false;
+                        currentCard.value = await res.json();
+                        await nextTick();
+                        answerInput.value?.focus();
+                    } catch (err) {
+                        console.error('Failed to fetch card:', err);
+                    }
+                }
+
+                async function submitAnswer() {
+                    if (!currentCard.value || !userAnswer.value.trim() || cardCompleted.value) return;
+
+                    attempts.value++;
+
+                    try {
+                        const res = await fetch('/api/check', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                card_id: currentCard.value.id,
+                                user_input: userAnswer.value,
+                                record_result: false, // Don't record until final
+                            }),
+                        });
+                        const data = await res.json();
+
+                        if (data.correct) {
+                            // Success! Record it and complete the card
+                            feedbackMessage.value = 'Correct!';
+                            feedbackType.value = 'success';
+                            expectedAnswer.value = data.expected;
+                            cardCompleted.value = true;
+                            lastWasWrong.value = false;
+                            stats.total_success++;
+
+                            // Record the success on the server
+                            await fetch('/api/check', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    card_id: currentCard.value.id,
+                                    user_input: userAnswer.value,
+                                    record_result: true,
+                                }),
+                            });
+                        } else {
+                            // Wrong answer - let them try again
+                            feedbackMessage.value = 'Incorrect - Try again!';
+                            feedbackType.value = 'error';
+                            lastWasWrong.value = true;
+                            userAnswer.value = ''; // Clear for next attempt
+
+                            // Shake animation
+                            answerInput.value?.classList.add('shake');
+                            setTimeout(() => {
+                                answerInput.value?.classList.remove('shake');
+                            }, 500);
+
+                            await nextTick();
+                            answerInput.value?.focus();
+                        }
+                    } catch (err) {
+                        console.error('Failed to check answer:', err);
+                    }
+                }
+
+                async function giveUp() {
+                    if (!currentCard.value || cardCompleted.value) return;
+
+                    try {
+                        const res = await fetch('/api/give_up', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                card_id: currentCard.value.id,
+                            }),
+                        });
+                        const data = await res.json();
+
+                        feedbackMessage.value = 'Better luck next time!';
+                        feedbackType.value = 'warning';
+                        expectedAnswer.value = mode.value === 'eng_to_viet' ? data.vietnamese : data.english;
+                        cardCompleted.value = true;
+                        lastWasWrong.value = false;
+                        stats.total_fail++;
+                    } catch (err) {
+                        console.error('Failed to give up:', err);
+                    }
+                }
+
+                async function getHint() {
+                    if (!currentCard.value || hintLevel.value >= 3) return;
+
+                    hintLevel.value++;
+                    try {
+                        const res = await fetch(`/api/hint?mode=${mode.value}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                card_id: currentCard.value.id,
+                                hint_level: hintLevel.value,
+                            }),
+                        });
+                        const data = await res.json();
+                        currentHint.value = data.hint;
+                    } catch (err) {
+                        console.error('Failed to get hint:', err);
+                    }
+                }
+
+                function nextCard() {
+                    // Reset all state
+                    feedbackMessage.value = '';
+                    feedbackType.value = '';
+                    expectedAnswer.value = '';
+                    userAnswer.value = '';
+                    currentHint.value = '';
+                    hintLevel.value = 0;
+                    attempts.value = 0;
+                    cardCompleted.value = false;
+                    lastWasWrong.value = false;
+                    fetchCard();
+                }
+
+                function setMode(newMode) {
+                    mode.value = newMode;
+                    nextCard();
+                }
+
+                function onCategoryChange() {
+                    nextCard();
+                }
+
+                async function addCard() {
+                    try {
+                        const res = await fetch('/api/card', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                vietnamese: newCard.vietnamese,
+                                english: newCard.english,
+                                category: newCard.category || null,
+                                difficulty_level: 1,
+                            }),
+                        });
+
+                        if (res.ok) {
+                            newCard.vietnamese = '';
+                            newCard.english = '';
+                            newCard.category = '';
+                            showAddCard.value = false;
+                            fetchCategories();
+
+                            if (noCards.value) {
+                                fetchCard();
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Failed to add card:', err);
+                    }
+                }
+
+                async function loadTopic(filename, clearExisting = false) {
+                    loadingTopic.value = filename;
+                    topicMessage.value = '';
+                    try {
+                        const res = await fetch('/api/topics/load', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ filename, clear_existing: clearExisting }),
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            topicMessage.value = data.message;
+                            topicMessageType.value = 'success';
+                            await refreshCategories();
+                            if (noCards.value) {
+                                fetchCard();
+                            }
+                        } else {
+                            topicMessage.value = data.detail || 'Failed to load topic';
+                            topicMessageType.value = 'error';
+                        }
+                    } catch (err) {
+                        topicMessage.value = 'Failed to load topic';
+                        topicMessageType.value = 'error';
+                    } finally {
+                        loadingTopic.value = null;
+                    }
+                }
+
+                async function syncAllTopics() {
+                    syncing.value = true;
+                    topicMessage.value = '';
+                    try {
+                        const res = await fetch('/api/topics/sync', { method: 'POST' });
+                        const data = await res.json();
+                        topicMessage.value = data.message;
+                        topicMessageType.value = 'success';
+                        await refreshCategories();
+                        if (noCards.value) {
+                            fetchCard();
+                        }
+                    } catch (err) {
+                        topicMessage.value = 'Failed to sync topics';
+                        topicMessageType.value = 'error';
+                    } finally {
+                        syncing.value = false;
+                    }
+                }
+
+                async function refreshCategories() {
+                    await Promise.all([fetchCategories(), fetchTopics(), fetchStats()]);
+                }
+
+                onMounted(() => {
+                    fetchStats();
+                    fetchCategories();
+                    fetchTopics();
+                    fetchCard();
+                });
+
+                return {
+                    mode,
+                    currentCard,
+                    userAnswer,
+                    expectedAnswer,
+                    currentHint,
+                    hintLevel,
+                    showAddCard,
+                    noCards,
+                    stats,
+                    newCard,
+                    answerInput,
+                    feedbackMessage,
+                    feedbackType,
+                    attempts,
+                    cardCompleted,
+                    inputClass,
+                    selectedCategory,
+                    categories,
+                    availableTopics,
+                    showTopicManager,
+                    loadingTopic,
+                    syncing,
+                    topicMessage,
+                    topicMessageType,
+                    submitAnswer,
+                    giveUp,
+                    getHint,
+                    nextCard,
+                    setMode,
+                    onCategoryChange,
+                    addCard,
+                    loadTopic,
+                    syncAllTopics,
+                    refreshCategories,
+                };
+            },
+        }).mount('#app');
+    </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(poetry install:*)",
+      "Bash(poetry run python:*)",
+      "Bash(poetry run uvicorn:*)",
+      "Bash(timeout:*)",
+      "Bash(exit 0)",
+      "Bash(curl:*)",
+      "Bash(powershell -Command \"Invoke-RestMethod -Uri ''http://127.0.0.1:8000/api/check'' -Method Post -ContentType ''application/json'' -Body ''{\"\"card_id\"\": 1, \"\"user_input\"\": \"\"xin chào\"\"}'' | ConvertTo-Json\")",
+      "Bash(poetry run pytest:*)"
+    ]
+  }
+}
