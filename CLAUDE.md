@@ -1,4 +1,4 @@
-# CLAUDE.md
+pythonrun.py# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -8,9 +8,9 @@ MyCon Learn is a locally hosted web application for practicing Vietnamese readin
 
 ## Tech Stack
 
-- **Backend:** Python 3.11+ with FastAPI
-- **Database:** SQLite (for spaced repetition tracking)
-- **Frontend:** HTML5, Vanilla JS or Vue.js (CDN), TailwindCSS (CDN) - no npm/webpack build steps
+- **Backend:** Python 3.11+ with FastAPI, SQLAlchemy 2.0, Pydantic v2
+- **Database:** SQLite (default); `DATABASE_URL` env var can point to PostgreSQL
+- **Frontend:** Single-file Vue.js app at `static/index.html` (CDN, no build step)
 - **Package Manager:** Poetry
 
 ## Commands
@@ -19,55 +19,93 @@ MyCon Learn is a locally hosted web application for practicing Vietnamese readin
 # Install dependencies
 poetry install
 
+# Run the FastAPI server (development)
+poetry run uvicorn app.main:app --reload
+
+# Run the app locally and auto-open browser
+poetry run python run.py
+
 # Seed the database with initial vocabulary
 poetry run python seed_db.py
 
-# Run the FastAPI server
-poetry run uvicorn app.main:app --reload
-
-# Run tests
+# Run all tests
 poetry run pytest tests/ -v
+
+# Run a single test
+poetry run pytest tests/test_api.py::TestCheckAnswer::test_wrong_diacritics_is_incorrect -v
 ```
+
+## Configuration
+
+Settings are loaded from a `.env` file (see `.env.example`) via `app/config.py` using `pydantic-settings`:
+
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | `sqlite:///./mycon_learn.db` | SQLAlchemy connection string |
+| `APP_PASSWORD` | `` (empty) | Set to enable password-protected login |
+| `HOST` | `0.0.0.0` | Server bind host |
+| `PORT` | `8000` | Server bind port |
+| `DEBUG` | `false` | Enables `/docs` and `/redoc` when true |
+| `CORS_ORIGINS` | `*` | Comma-separated allowed origins |
+
+Authentication is disabled when `APP_PASSWORD` is empty. Sessions are in-memory (reset on restart).
 
 ## Architecture
 
-### Project Structure
+### Key Files
+
 ```
 app/
-  database.py     # SQLite/SQLAlchemy setup
-  models.py       # Card model
+  main.py         # FastAPI app, all endpoints, answer normalization logic
+  config.py       # Settings via pydantic-settings (lru_cache singleton)
+  auth.py         # Cookie-based session auth, login page HTML
+  database.py     # SQLAlchemy engine and get_db dependency
+  models.py       # Card ORM model
   schemas.py      # Pydantic request/response schemas
-  main.py         # FastAPI app and endpoints
-  vocab_loader.py # CSV vocabulary file loader
+  vocab_loader.py # CSV loading logic; VOCAB_DIR = project_root/vocab/
 static/
-  index.html      # Vue.js frontend
-vocab/            # CSV vocabulary files (one per topic)
-  greetings.csv
-  food.csv
-  family.csv
-  common_verbs.csv
+  index.html      # Entire Vue.js frontend
+vocab/            # CSV vocabulary files (one per topic/category)
 tests/
-  test_api.py     # API tests
-seed_db.py        # Database seeding script
+  test_api.py     # Uses in-memory SQLite; no auth (APP_PASSWORD unset)
 ```
 
 ### API Endpoints
-- `GET /api/card/random` - Returns random flashcard (query params: `?mode=eng_to_viet|viet_to_eng`, `?category=...`)
-- `POST /api/check` - Validates user answer `{ card_id: int, user_input: string }` → `{ correct: bool, diff: string }`
-- `POST /api/hint` - Get hint for current card `{ card_id: int, hint_level: 1-3 }`
-- `POST /api/card` - Add new word to deck
-- `GET /api/cards` - List all cards
-- `GET /api/stats` - Get learning statistics
-- `GET /api/topics` - List available CSV files in vocab/ folder
-- `GET /api/categories` - List categories in database
-- `POST /api/topics/load` - Load a CSV file `{ filename: string, clear_existing: bool }`
-- `POST /api/topics/sync` - Sync all CSV files to database
 
-### Data Model
-Cards table with: id, vietnamese, english, category, difficulty_level, success_count, fail_count, last_reviewed
+All `/api/*` endpoints require authentication when `APP_PASSWORD` is set.
 
-### Key Requirements
-- **Strict diacritic validation:** Answers must match exact Vietnamese spelling including all tone marks (e.g., "ma" ≠ "má")
-- **String normalization:** Trim whitespace, lowercase before comparison
-- **Hint system:** Three levels (syllable count → first letters → definition/context)
-- **Vietnamese input:** Users should use OS-level Telex keyboard input
+- `GET /health` — Health check (no auth required)
+- `GET /api/card/random` — Random flashcard (`?mode=eng_to_viet|viet_to_eng`, `?category=...`)
+- `POST /api/check` — Validate answer `{ card_id, user_input, record_result? }` → `{ correct, expected, diff }`
+- `POST /api/give_up` — Reveal answer and record failure `{ card_id }`
+- `POST /api/hint` — Get hint `{ card_id, hint_level: 1-3 }` + `?mode=...`
+- `POST /api/card` — Add a card
+- `GET /api/cards` — List cards (`?category=`, `?skip=`, `?limit=`)
+- `DELETE /api/cards` — Delete all cards
+- `GET /api/stats` — Aggregate success/fail counts and accuracy
+- `GET /api/topics` — List CSV files in `vocab/`
+- `GET /api/categories` — List distinct categories from DB
+- `POST /api/topics/load` — Load a CSV `{ filename, clear_existing }`
+- `POST /api/topics/sync` — Upsert all CSVs into DB
+
+### Answer Validation Logic (`main.py`)
+
+- `normalize_vietnamese`: strips whitespace, lowercases, applies Unicode NFC normalization
+- `/api/check` accepts either the Vietnamese **or** English answer as correct
+- Incorrect answers are **not** recorded in stats by default; pass `"record_result": true` to force recording
+- `/api/give_up` always records a failure
+
+### Hint Levels
+
+1. Word shapes (`___ ____`)
+2. First letters (`x__ c___`)
+3. Full answer revealed
+
+### Vocabulary CSV Format
+
+```csv
+vietnamese,english[,category][,difficulty_level]
+xin chào,hello,greetings,1
+```
+
+If `category` is omitted, the filename stem is used (e.g., `common_verbs.csv` → `"common verbs"`). Duplicate rows (same vietnamese + english) are skipped on load.

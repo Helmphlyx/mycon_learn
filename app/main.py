@@ -319,11 +319,15 @@ async def list_cards(
     request: Request,
     skip: int = 0,
     limit: int = 100,
+    category: Annotated[str | None, Query()] = None,
     db: Session = Depends(get_db),
     _: None = Depends(require_auth),
 ):
-    """List all cards in the deck."""
-    cards = db.query(Card).offset(skip).limit(limit).all()
+    """List all cards in the deck, optionally filtered by category."""
+    query = db.query(Card)
+    if category:
+        query = query.filter(Card.category == category)
+    cards = query.offset(skip).limit(limit).all()
     return cards
 
 

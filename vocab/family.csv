@@ -1,13 +1,36 @@
 vietnamese,english
 mẹ,mother
-bố,father
+ba,father
 anh,older brother
 chị,older sister
 em,younger sibling
-ông,grandfather
-bà,grandmother
+ông nội,grandfather (dad's side)
+bà nội,grandmother (dad's side)
+ông ngoại,grandfather (dad's side)
+bà ngoại,grandmother (dad's side)
 con,child
 cháu,grandchild
 vợ,wife
 chồng,husband
 gia đình,family
+anh họ,male cousin (older)
+chi họ,female cousin (older)
+em họ,cousin (younger)
+bác,uncle/aunt (parent's older sibling)
+chú,uncle (dad's younger brother)
+dượng,uncle (mom's sister's husband)
+thím,aunt (dad's younger brother's wife)
+mợ,aunt (mom's brother's wife)
+dì,aunt (dad's younger sister)
+cậu,uncle (mom's brother)
+cô,aunt (younger than parent)
+cháu trai,grandson/nephew
+cháu gái,granddaughter/niece
+chồng,husband
+mẹ chồng,mother-in-law
+ba chồng,father-in-law
+vợ chồng,married couple
+con dâu,daughter-in-law
+con rể,son-in-law
+chị dâu,sister-in-law
+anh rể,brother-in-law
