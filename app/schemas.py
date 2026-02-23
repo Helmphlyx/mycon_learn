@@ -18,6 +18,7 @@ class CardResponse(CardBase):
     success_count: int
     fail_count: int
     last_reviewed: datetime | None
+    mastered: bool
 
     model_config = {"from_attributes": True}
 
@@ -34,6 +35,7 @@ class CheckRequest(BaseModel):
     card_id: int
     user_input: str
     record_result: bool = False  # Only record stats when True (on final attempt)
+    mark_mastered: bool = False  # Mark the card as mastered (answered correctly with ≤2 hints)
 
 
 class CheckResponse(BaseModel):
@@ -81,3 +83,8 @@ class TopicLoadResponse(BaseModel):
     filename: str
     cards_loaded: int
     message: str
+
+
+class ResetMasteryRequest(BaseModel):
+    """Request to reset mastery for a category."""
+    category: str | None = None  # None means reset all cards

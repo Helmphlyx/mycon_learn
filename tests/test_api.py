@@ -161,8 +161,8 @@ class TestHints:
         )
         assert response.status_code == 200
         data = response.json()
-        # "xin chào" -> "___ ____"
-        assert data["hint"] == "___ ____"
+        # "xin chào" -> "___(3) ____(4)" (with letter counts)
+        assert data["hint"] == "___(3) ____(4)"
         assert data["hint_level"] == 1
 
     def test_hint_level_2(self, client, sample_card):

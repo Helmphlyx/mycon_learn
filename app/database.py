@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
 from app.config import get_settings
@@ -24,3 +24,21 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def run_migrations():
+    """Run simple schema migrations for new columns."""
+    inspector = inspect(engine)
+
+    # Check if cards table exists
+    if "cards" not in inspector.get_table_names():
+        return
+
+    # Get existing columns
+    columns = {col["name"] for col in inspector.get_columns("cards")}
+
+    # Add mastered column if it doesn't exist
+    if "mastered" not in columns:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE cards ADD COLUMN mastered BOOLEAN DEFAULT 0"))
+            conn.commit()

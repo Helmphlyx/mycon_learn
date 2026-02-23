@@ -12,7 +12,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.database import engine, get_db, Base
+from app.database import engine, get_db, Base, run_migrations
 from app.models import Card
 from app.schemas import (
     CardCreate,
@@ -27,6 +27,7 @@ from app.schemas import (
     TopicInfo,
     TopicLoadRequest,
     TopicLoadResponse,
+    ResetMasteryRequest,
 )
 from app.vocab_loader import get_available_topics, load_topic_into_db, sync_all_topics, VOCAB_DIR
 from app.auth import (
@@ -48,6 +49,7 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 Base.metadata.create_all(bind=engine)
+run_migrations()
 
 app = FastAPI(
     title="MyCon Learn",
@@ -106,7 +108,7 @@ def generate_hint(card: Card, mode: QuizMode, hint_level: int) -> str:
     words = answer.split()
 
     if hint_level == 1:
-        return " ".join("_" * len(word) for word in words)
+        return " ".join(f"{'_' * len(word)}({len(word)})" for word in words)
     elif hint_level == 2:
         return " ".join(word[0] + "_" * (len(word) - 1) for word in words)
     else:
@@ -232,6 +234,8 @@ async def check_answer(
         card.last_reviewed = datetime.utcnow()
         if correct:
             card.success_count += 1
+            if check_request.mark_mastered:
+                card.mastered = True
         else:
             card.fail_count += 1
         db.commit()
@@ -349,6 +353,30 @@ async def get_stats(
         "total_success": total_success,
         "total_fail": total_fail,
         "accuracy": round(total_success / total_attempts * 100, 1) if total_attempts > 0 else 0,
+    }
+
+
+@app.post("/api/mastery/reset")
+async def reset_mastery(
+    request: Request,
+    reset_request: ResetMasteryRequest,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_auth),
+):
+    """Reset mastery status for cards in a category (or all cards if category is None)."""
+    query = db.query(Card)
+    if reset_request.category:
+        query = query.filter(Card.category == reset_request.category)
+
+    count = query.filter(Card.mastered == True).count()
+    query.update({Card.mastered: False})
+    db.commit()
+
+    category_msg = f'"{reset_request.category}"' if reset_request.category else "all topics"
+    logger.info(f"Reset mastery for {count} cards in {category_msg}")
+    return {
+        "message": f"Reset mastery for {count} cards in {category_msg}",
+        "cards_reset": count,
     }
 
 

@@ -79,6 +79,15 @@
                             <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
                         </select>
                         <button
+                            @click="resetTopicMastery"
+                            class="text-orange-600 hover:text-orange-700 p-1"
+                            title="Reset Topic Mastery"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                        <button
                             @click="showTopicManager = !showTopicManager"
                             class="text-gray-500 hover:text-blue-600 p-1"
                             title="Manage Topics"
@@ -178,10 +187,10 @@
                     <p class="text-green-700 mb-4">You've mastered all {{ topicTotalCards }} words in this topic.</p>
                     <div class="flex gap-3 justify-center">
                         <button
-                            @click="restartTopic"
-                            class="bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition"
+                            @click="resetTopicMastery"
+                            class="bg-orange-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-orange-600 transition"
                         >
-                            Practice Again
+                            Reset & Practice Again
                         </button>
                     </div>
                 </div>
@@ -478,12 +487,13 @@
                         const res = await fetch(url);
                         const cards = await res.json();
                         allTopicCards.value = cards;
-                        wordPool.value = [...cards];
+                        // Only include non-mastered cards in the word pool
+                        wordPool.value = cards.filter(c => !c.mastered);
                         topicTotalCards.value = cards.length;
-                        topicComplete.value = false;
+                        topicComplete.value = wordPool.value.length === 0 && cards.length > 0;
                         noCards.value = cards.length === 0;
 
-                        if (cards.length > 0) {
+                        if (wordPool.value.length > 0) {
                             pickNextCard();
                         } else {
                             currentCard.value = null;
@@ -608,7 +618,7 @@
                         const data = await res.json();
 
                         if (data.correct) {
-                            const mastered = hintsUsedThisCard.value <= 1;
+                            const mastered = hintsUsedThisCard.value <= 2;
 
                             if (mastered) {
                                 // Remove from word pool — word is mastered
@@ -635,6 +645,7 @@
                                     card_id: currentCard.value.id,
                                     user_input: userAnswer.value,
                                     record_result: true,
+                                    mark_mastered: mastered,
                                 }),
                             });
                         } else {
@@ -729,9 +740,32 @@
 
                 function restartTopic() {
                     resetSessionTracking();
-                    wordPool.value = [...allTopicCards.value];
+                    wordPool.value = allTopicCards.value.filter(c => !c.mastered);
                     topicComplete.value = false;
-                    pickNextCard();
+                    if (wordPool.value.length > 0) {
+                        pickNextCard();
+                    }
+                }
+
+                async function resetTopicMastery() {
+                    if (!confirm(`Reset mastery for ${selectedCategory.value || 'all topics'}? This will move all words back to the practice pool.`)) {
+                        return;
+                    }
+                    try {
+                        const res = await fetch('/api/mastery/reset', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                category: selectedCategory.value || null,
+                            }),
+                        });
+                        if (res.ok) {
+                            resetSessionTracking();
+                            await loadTopicCards();
+                        }
+                    } catch (err) {
+                        console.error('Failed to reset mastery:', err);
+                    }
                 }
 
                 async function addCard() {
@@ -864,6 +898,7 @@
                     setMode,
                     onCategoryChange,
                     restartTopic,
+                    resetTopicMastery,
                     addCard,
                     loadTopic,
                     loadTopicCards,
