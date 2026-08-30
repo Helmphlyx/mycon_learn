@@ -33,6 +33,12 @@ poetry run pytest tests/ -v
 
 # Run a single test
 poetry run pytest tests/test_api.py::TestCheckAnswer::test_wrong_diacritics_is_incorrect -v
+
+# Rebuild the offline bundle the iOS app ships (after editing static/index.html or vocab/)
+poetry run python scripts/build_ios_www.py
+
+# Redraw the iOS app icon
+poetry run python scripts/generate_app_icon.py
 ```
 
 ## Configuration
@@ -66,8 +72,24 @@ app/
 static/
   index.html      # Entire Vue.js frontend
 vocab/            # CSV vocabulary files (one per topic/category)
+ios/
+  MyConLearn.xcodeproj/
+  MyConLearn/
+    MyConLearnApp.swift          # SwiftUI entry point
+    WebAppView.swift             # WKWebView host
+    AppContentSchemeHandler.swift # Serves www/ over myconlearn://
+    ProgressStore.swift          # Mirrors progress outside the web view
+    www/                         # Offline bundle; index.html + vocab.js are generated
+      local-api.js               # JS port of the backend (see below)
+  README.md                      # Xcode setup and the weekly reinstall
+scripts/
+  build_ios_www.py  # static/index.html + vocab/*.csv -> ios/MyConLearn/www/
+  generate_app_icon.py
 tests/
-  test_api.py     # Uses in-memory SQLite; no auth (APP_PASSWORD unset)
+  test_api.py                # Uses in-memory SQLite; no auth (APP_PASSWORD unset)
+  test_offline_parity.py     # Backend vs. the JS port, via JavaScriptCore
+  test_ios_project.py        # Bundle freshness and Xcode project integrity
+  test_webview_integration.py # Drives the real bundle in a WKWebView
 ```
 
 ### API Endpoints
@@ -94,6 +116,21 @@ All `/api/*` endpoints require authentication when `APP_PASSWORD` is set.
 - `/api/check` accepts either the Vietnamese **or** English answer as correct
 - Incorrect answers are **not** recorded in stats by default; pass `"record_result": true` to force recording
 - `/api/give_up` always records a failure
+
+### The iOS App Shares This Logic
+
+The iPhone app has no server: `ios/MyConLearn/www/local-api.js` reimplements
+`main.py`'s endpoints in JavaScript and answers the page's `fetch` calls from
+vocabulary compiled into `www/vocab.js`.
+
+**Changing answer validation, hints, or any `/api/*` response means changing
+both.** `tests/test_offline_parity.py` replays thousands of requests through
+the FastAPI app and the JavaScript port and fails on any difference.
+
+`static/index.html` is shared verbatim — the build script rewrites a handful of
+exact strings in it (the CDN tags and the viewport meta) and aborts if it
+cannot find them, so editing those lines means updating `SUBSTITUTIONS` in
+`scripts/build_ios_www.py`.
 
 ### Hint Levels
 

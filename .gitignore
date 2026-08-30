@@ -32,3 +32,15 @@ htmlcov/
 # Environment variables
 .env
 .env.local
+
+# macOS app bundle
+*.app/
+app_launch.log
+
+# Xcode
+ios/build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.db.backup-*

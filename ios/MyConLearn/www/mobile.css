@@ -1,0 +1,100 @@
+/*
+ * mobile.css — phone adaptations layered over the desktop web UI.
+ *
+ * static/index.html is shared with the web app and is not edited for iOS, so
+ * every rule here overrides a Tailwind utility class and needs !important:
+ * the Play CDN injects its stylesheet at runtime, after this file.
+ */
+
+:root {
+    --mycon-bg: #f3f4f6;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    background: var(--mycon-bg);
+}
+
+body {
+    background: var(--mycon-bg);
+    /* No pull-to-refresh or rubber-banding past the edges of the app. */
+    overscroll-behavior-y: contain;
+    -webkit-tap-highlight-color: transparent;
+    /* Removes the 300ms double-tap-to-zoom delay. */
+    touch-action: manipulation;
+}
+
+/* Keep content clear of the notch, Dynamic Island and home indicator. */
+#app {
+    padding-top: calc(env(safe-area-inset-top) + 1rem) !important;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1.5rem) !important;
+    padding-left: calc(env(safe-area-inset-left) + 1rem) !important;
+    padding-right: calc(env(safe-area-inset-right) + 1rem) !important;
+}
+
+/* Buttons and toggles should not show a text caret or selection highlight. */
+button,
+label {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Comfortable tap targets for the small icon buttons in the topic row. */
+#app button > svg {
+    width: 1.5rem !important;
+    height: 1.5rem !important;
+}
+
+@media (max-width: 767px) {
+    /* The header is redundant once the app has its own icon and title bar. */
+    #app > header {
+        margin-bottom: 1rem !important;
+    }
+
+    #app > header h1 {
+        font-size: 1.5rem !important;
+    }
+
+    /* Main column and progress sidebar stack vertically. */
+    #app > .flex.gap-6 {
+        flex-direction: column !important;
+    }
+
+    #app > .flex.gap-6 > .w-72 {
+        width: 100% !important;
+    }
+
+    /* A sticky sidebar below the fold just gets in the way on a phone. */
+    #app > .flex.gap-6 > .w-72 > .sticky {
+        position: static !important;
+    }
+
+    /* The stats row wraps rather than squeezing the mode buttons. */
+    #app .flex.justify-between.items-center.mb-3 {
+        flex-wrap: wrap !important;
+        gap: 0.75rem !important;
+    }
+
+    /* The prompt is the focal point but 4xl overflows with longer phrases. */
+    #app h2.text-4xl {
+        font-size: 1.875rem !important;
+        line-height: 2.25rem !important;
+        overflow-wrap: break-word !important;
+    }
+
+    /* Full-width, thumb-sized action buttons. */
+    #app form .flex.gap-3 > button {
+        flex: 1 1 auto !important;
+        min-height: 3rem !important;
+    }
+
+    /* Tighter card padding buys back horizontal room. */
+    #app .p-8 {
+        padding: 1.25rem !important;
+    }
+
+    /* The practiced-words list scrolls with the page instead of nesting. */
+    #app .max-h-96 {
+        max-height: 14rem !important;
+    }
+}

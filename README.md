@@ -116,14 +116,39 @@ All `/api/*` endpoints require authentication when `APP_PASSWORD` is set.
 For typing Vietnamese diacritics, install a Vietnamese keyboard on your OS:
 - **Windows:** Settings → Time & Language → Language → Add Vietnamese (Telex)
 - **macOS:** System Preferences → Keyboard → Input Sources → Add Vietnamese
+- **iOS:** Settings → General → Keyboard → Keyboards → Add New Keyboard → Vietnamese (Telex)
 
 With Telex input, type `ngayf` to produce `ngày`.
+
+## iPhone App
+
+The same app runs natively on an iPhone, fully offline — no server and no
+laptop needed. The vocabulary is compiled into the app and progress is saved on
+the device.
+
+```bash
+# Rebuild the offline bundle after editing vocab/
+poetry run python scripts/build_ios_www.py
+```
+
+Then open `ios/MyConLearn.xcodeproj` in Xcode and press Run. Building needs
+Xcode and a free Apple ID; apps signed that way expire after seven days, so
+reinstalling is a weekly habit — progress carries over.
+
+See [ios/README.md](ios/README.md) for setup, the weekly refresh, and how to
+preview the offline bundle in a browser without installing Xcode.
 
 ## Running Tests
 
 ```bash
 poetry run pytest tests/ -v
 ```
+
+Alongside the API tests, the suite checks the iPhone build: that the offline
+JavaScript port answers identically to the FastAPI backend, that the bundle is
+in step with `static/index.html` and `vocab/`, and that progress survives the
+web view's storage being wiped. The last two groups need macOS and are skipped
+elsewhere.
 
 ## Deployment
 

@@ -44,6 +44,9 @@ class CheckResponse(BaseModel):
     user_input: str
     diff: str | None = None
     attempts: int | None = None  # Track attempt count
+    partial_hint: str | None = None  # Shows correct words revealed, wrong words blanked
+    correct_count: int | None = None  # Number of words matched
+    total_words: int | None = None  # Total words in expected answer
 
 
 class GiveUpRequest(BaseModel):

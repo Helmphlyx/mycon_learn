@@ -227,6 +227,53 @@ class TestStats:
         data = response.json()
         assert data["total_attempts"] == 0  # Not recorded
 
+    def test_partial_hint_multi_word(self, client):
+        """Test that partial word feedback is returned for multi-word wrong answers."""
+        db = TestingSessionLocal()
+        card = Card(vietnamese="tôi yêu bạn", english="I love you", category="phrases")
+        db.add(card)
+        db.commit()
+        db.refresh(card)
+        db.close()
+
+        # "tôi" correct, "yeu" wrong (missing diacritic), "bạn" correct
+        response = client.post(
+            "/api/check",
+            json={"card_id": card.id, "user_input": "tôi yeu bạn"},
+        )
+        data = response.json()
+        assert data["correct"] is False
+        assert data["partial_hint"] == "tôi ___ bạn"
+        assert data["correct_count"] == 2
+        assert data["total_words"] == 3
+
+    def test_no_partial_hint_single_word(self, client, sample_card):
+        """Test that single-word wrong answers don't get partial hints."""
+        response = client.post(
+            "/api/check",
+            json={"card_id": sample_card.id, "user_input": "wrong"},
+        )
+        data = response.json()
+        assert data["correct"] is False
+        assert data["partial_hint"] is None
+
+    def test_no_partial_hint_all_words_wrong(self, client):
+        """Test that no partial hint when all words are wrong."""
+        db = TestingSessionLocal()
+        card = Card(vietnamese="tôi yêu bạn", english="I love you", category="phrases")
+        db.add(card)
+        db.commit()
+        db.refresh(card)
+        db.close()
+
+        response = client.post(
+            "/api/check",
+            json={"card_id": card.id, "user_input": "abc def ghi"},
+        )
+        data = response.json()
+        assert data["correct"] is False
+        assert data["partial_hint"] is None
+
     def test_incorrect_recorded_when_requested(self, client, sample_card):
         """Test that incorrect attempts record when record_result=True."""
         client.post(

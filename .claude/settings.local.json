@@ -9,7 +9,13 @@
       "Bash(curl:*)",
       "Bash(powershell -Command \"Invoke-RestMethod -Uri ''http://127.0.0.1:8000/api/check'' -Method Post -ContentType ''application/json'' -Body ''{\"\"card_id\"\": 1, \"\"user_input\"\": \"\"xin chào\"\"}'' | ConvertTo-Json\")",
       "Bash(poetry run pytest:*)",
-      "Bash(poetry lock:*)"
+      "Bash(poetry lock:*)",
+      "Bash(poetry --version:*)",
+      "Bash(poetry env info:*)",
+      "Bash(xattr:*)",
+      "Bash(chmod:*)",
+      "Bash(wc:*)",
+      "Bash(grep -E \"\\\\.py$|requirements\")"
     ]
   }
 }

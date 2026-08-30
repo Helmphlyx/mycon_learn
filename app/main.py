@@ -242,14 +242,46 @@ async def check_answer(
 
     expected = None
     diff = None
+    partial_hint = None
+    correct_count = None
+    total_words = None
     if correct:
         expected = card.vietnamese if correct_viet else card.english
+    else:
+        # Word-by-word comparison for multi-word answers
+        # Try both possible expected answers and pick the one with more word matches
+        best_hint = None
+        best_correct = 0
+        best_total = 0
+        for candidate in [card.vietnamese, card.english]:
+            expected_words = candidate.split()
+            user_words = check_request.user_input.strip().split()
+            if len(expected_words) >= 2 and len(user_words) >= 1:
+                hint_parts = []
+                matched = 0
+                for i, exp_word in enumerate(expected_words):
+                    if i < len(user_words) and normalize_vietnamese(user_words[i]) == normalize_vietnamese(exp_word):
+                        hint_parts.append(exp_word)
+                        matched += 1
+                    else:
+                        hint_parts.append("_" * len(exp_word))
+                if matched > best_correct:
+                    best_correct = matched
+                    best_total = len(expected_words)
+                    best_hint = " ".join(hint_parts)
+        if best_correct > 0:
+            partial_hint = best_hint
+            correct_count = best_correct
+            total_words = best_total
 
     return CheckResponse(
         correct=correct,
         expected=expected,
         user_input=check_request.user_input,
         diff=diff,
+        partial_hint=partial_hint,
+        correct_count=correct_count,
+        total_words=total_words,
     )
 
 
